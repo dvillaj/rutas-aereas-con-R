@@ -1,0 +1,69 @@
+---
+title: "Mapa de rutas aéreas y grafos"
+author: "datahack"
+date: "19 de abril de 2017"
+---
+# Cargar lista de vuelos
+```{r Carga vuelos}
+flights <- read.csv("flights.csv", stringsAsFactors = FALSE)
+```
+
+# Georeferenciar aeropuertos
+```{r Establece Coordenadas ,message=FALSE}
+library(ggmap)
+airports <- unique(c(flights$From, flights$To))
+coords <- geocode(airports)
+airports <- data.frame(airport=airports, coords)
+```
+
+# Añadir coordenadas a la lista de vuelos
+```{r Coordenadas Vuelos, echo=FALSE}
+flights <- merge(flights, airports, by.x="To", by.y="airport")
+flights <- merge(flights, airports, by.x="From", by.y="airport")
+```
+
+# Dibujar la ruta de los vuelos
+```{r Dibujar rutas}
+library(ggplot2)
+library(ggrepel)
+
+worldmap <- borders("world", colour="grey60", fill="#efede1")
+
+ggplot() + worldmap + 
+ geom_curve(data=flights, aes(x = lon.x, y = lat.x, xend = lon.y, yend = lat.y), col = "#b29e7d", size = 1, curvature = .2) + 
+ geom_point(data=airports, aes(x = lon, y = lat), col = "#970027") + 
+ geom_text_repel(data=airports, aes(x = lon, y = lat, label = airport), col = "black", size = 2, segment.color = NA) + 
+ theme(panel.background = element_rect(fill="white"), 
+ axis.line = element_blank(),
+ axis.text.x = element_blank(),
+ axis.text.y = element_blank(),
+ axis.ticks = element_blank(),
+ axis.title.x = element_blank(),
+ axis.title.y = element_blank()
+ )
+```
+
+```{r Dibujar Grafos, message=FALSE}
+# Grafo de los vuelos
+library(igraph)
+
+edgelist <- as.matrix(flights[c("From", "To")])
+
+g <- graph_from_edgelist(edgelist, directed = TRUE)
+g <- simplify(g)
+
+par(mar=rep(0,4))
+
+plot.igraph(g, 
+ edge.arrow.size=0,
+ edge.color="orange",
+ edge.curved=TRUE,
+ edge.width=2,
+ vertex.size=1,
+ vertex.color="blue", 
+ vertex.frame.color=NA, 
+ vertex.label=V(g)$name,
+ vertex.label.cex=0.8,
+ layout=layout.fruchterman.reingold
+)
+```
